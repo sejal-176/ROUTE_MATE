@@ -24,6 +24,17 @@ const Auth = () => {
 
   const handleAuth = async (e: FormEvent) => {
     e.preventDefault();
+    if (isNewUser) {
+       if (!name.trim() || name.length < 2) {
+          setMessage("Please enter a valid full name.");
+          return;
+       }
+       if (!gender) {
+          setMessage("Please select your gender.");
+          return;
+       }
+    }
+
     setLoading(true);
     setMessage('');
 
@@ -37,7 +48,7 @@ const Auth = () => {
           }
         });
         if (error) throw error;
-        setMessage('An 8-digit OTP has been sent to your email!');
+        setMessage('An 6-digit OTP has been sent to your email!');
       } else {
         const { error } = await supabase.auth.signInWithOtp({
           phone: phone,
@@ -63,7 +74,7 @@ const Auth = () => {
 
     try {
       const code = otpToken.trim();
-      if (!/^\d{8}$/.test(code)) {
+      if (!/^\d{6}$/.test(code)) {
         setMessage('Please enter the complete 8-digit code.');
         setLoading(false);
         return;
@@ -271,10 +282,10 @@ const Auth = () => {
                   <input
                     type="text"
                     className="w-full pl-16 pr-8 py-5 bg-gray-50 border border-gray-100 rounded-2xl text-2xl font-black tracking-[0.8em] text-center focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                    placeholder="00000000"
-                    maxLength={8}
+                    placeholder="000000"
+                    maxLength={6}
                     value={otpToken}
-                    onChange={(e) => setOtpToken(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                    onChange={(e) => setOtpToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     required
                   />
                 </div>

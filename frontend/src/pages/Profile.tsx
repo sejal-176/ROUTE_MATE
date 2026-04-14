@@ -83,13 +83,37 @@ const Profile = () => {
 
         await fetchRatingStats(user.id);
 
-        const { data: myPools } = await supabase
+        const { data: createdPools } = await supabase
           .from('pools')
-          .select(`*`)
+          .select('*')
           .eq('creator_id', user.id)
           .order('created_at', { ascending: false });
 
-        if (myPools) setPools(myPools);
+        const { data: joinedRequests } = await supabase
+          .from('pool_requests')
+          .select('pool_id')
+          .eq('requester_id', user.id)
+          .eq('status', 'accepted');
+
+        let myPools = createdPools || [];
+
+        if (joinedRequests && joinedRequests.length > 0) {
+           const poolIds = joinedRequests.map(r => r.pool_id);
+           const { data: joinedPools } = await supabase
+             .from('pools')
+             .select('*')
+             .in('id', poolIds)
+             .order('created_at', { ascending: false });
+           
+           if (joinedPools) {
+              const existingIds = new Set(myPools.map(p => p.id));
+              const newPools = joinedPools.filter(p => !existingIds.has(p.id));
+              myPools = [...myPools, ...newPools];
+              myPools.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+           }
+        }
+        
+        setPools(myPools);
       }
     } catch (err) {
       console.error('fetchFullProfileData failed', err);
@@ -134,18 +158,72 @@ const Profile = () => {
 
   const respondToRequest = async (requestId: string, accept: boolean) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/pool_requests/${requestId}/respond`, {
-        status: accept ? 'accepted' : 'rejected'
-        
-      });
-
-      if (response.data?.status === 'ok') {
-        fetchFullProfileData();
-        setNotification(accept ? 'Request accepted!' : 'Request rejected.');
-        setReviewingPoolId(null);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setNotification('Session expired. Please log in.');
+        return;
       }
-    } catch (error) {
+
+      const { data: requestData, error: reqError } = await supabase
+        .from('pool_requests')
+        .select('pool_id')
+        .eq('id', requestId)
+        .single();
+        
+      if (reqError || !requestData) throw new Error('Request not found');
+      const poolId = requestData.pool_id;
+
+      if (accept) {
+        const { data: poolData, error: poolError } = await supabase
+          .from('pools')
+          .select('available_seats, status, creator_id')
+          .eq('id', poolId)
+          .single();
+          
+        if (poolError || !poolData) throw new Error('Pool not found');
+        
+        if (poolData.creator_id !== user.id) {
+           throw new Error('Not authorized to accept requests for this pool');
+        }
+
+        if (poolData.available_seats <= 0 || poolData.status === 'full') {
+          setNotification('Cannot accept: Pool is already full.');
+          return;
+        }
+
+        const newSeats = poolData.available_seats - 1;
+        const poolUpdate: any = { available_seats: newSeats };
+        if (newSeats <= 0) {
+          poolUpdate.status = 'full';
+        }
+
+        const { error: updatePoolError } = await supabase
+          .from('pools')
+          .update(poolUpdate)
+          .eq('id', poolId);
+
+        if (updatePoolError) throw updatePoolError;
+      }
+
+      const { error: updateReqError } = await supabase
+        .from('pool_requests')
+        .update({ status: accept ? 'accepted' : 'rejected' })
+        .eq('id', requestId);
+
+      if (updateReqError) throw updateReqError;
+
+      setRequestPanel(prev => prev.filter(req => req.id !== requestId));
+      if (reviewingPoolId) {
+         setPendingRequestsByPool(prev => ({
+           ...prev, 
+           [reviewingPoolId]: (prev[reviewingPoolId] || []).filter(req => req.id !== requestId)
+         }));
+      }
+      setNotification(accept ? 'Request accepted!' : 'Request rejected.');
+
+    } catch (error: any) {
       console.error('Unable to respond to request', error);
+      setNotification(error.message || 'Action failed.');
     }
   };
 
@@ -339,117 +417,132 @@ const Profile = () => {
           </div>
 
           <AnimatePresence mode="wait">
-            {activeTab === 'ongoing' && (
-              <motion.div
-                key="ongoing"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 10 }}
-                className="flex flex-col gap-8"
-              >
-                {activePools.length === 0 ? (
-                  <div className="bg-gray-50 rounded-[2.5rem] py-20 px-6 text-center border-2 border-dashed border-gray-100">
-                    <p className="text-gray-400 font-bold">No active pools. Ready to host one?</p>
+  {activeTab === 'ongoing' && (
+    <motion.div
+      key="ongoing"
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 10 }}
+      className="flex flex-col gap-8"
+    >
+      {activePools.length === 0 ? (
+        <div className="bg-gray-50 rounded-[2.5rem] py-20 px-6 text-center border-2 border-dashed border-gray-100">
+          <p className="text-gray-400 font-bold">No active pools. Ready to host one?</p>
+          <button
+            onClick={() => navigate('/create-pool')}
+            className="btn-outline mt-6"
+          >
+            Host a Ride
+          </button>
+        </div>
+      ) : (
+        activePools.map(pool => {
+          const pendingRequests = pendingRequestsByPool[pool.id] || [];
+          // Check if the current user is the creator of this specific pool
+          const isCreator = profile?.id === pool.creator_id;
+
+          return (
+            <div key={pool.id} className="bg-white rounded-3xl border border-gray-100 p-8 shadow-lg group">
+              <div className="flex flex-col md:flex-row justify-between md:items-start gap-6 mb-8">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${pool.status === 'full' ? 'bg-orange-100 text-orange-600' : 'bg-[#FFC107]/20 text-accent-yellow'}`}>
+                      {pool.status}
+                    </span>
+                    <span className="text-gray-300">•</span>
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{pool.mode_of_transport}</span>
+                  </div>
+                  <h3 className="text-2xl font-black text-[#121212] tracking-tighter mb-2">
+                    {pool.source_text} <ChevronRight className="inline mx-1 text-[#FFC107]" /> {pool.dest_text}
+                  </h3>
+                  <p className="text-sm font-bold text-gray-400 flex items-center gap-2">
+                    <Calendar size={14} className="text-[#FFC107]" />
+                    {new Date(pool.time_window_start).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+                
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => navigate(`/chat/${pool.id}`)}
+                    className="w-12 h-12 bg-[#121212] text-[#FFC107] rounded-xl flex items-center justify-center hover:scale-110 transition-transform"
+                  >
+                    <MessageSquare size={20} />
+                  </button>
+                  
+                  {/* Only show "End Ride" for the creator */}
+                  {isCreator && (
                     <button
-                      onClick={() => navigate('/create-pool')}
-                      className="btn-outline mt-6"
+                      onClick={() => handleEndPool(pool.id)}
+                      className="px-6 h-12 bg-red-50 text-red-500 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-sm"
                     >
-                      Host a Ride
+                      End Ride
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* ONLY SHOW PENDING REQUESTS SECTION TO THE CREATOR */}
+              {isCreator && (
+                <>
+                  <div className="flex flex-col md:flex-row gap-4">
+                    <button
+                      onClick={() => loadRequestsForPool(pool.id)}
+                      className="flex-1 px-8 h-16 bg-gray-50 rounded-2xl flex items-center justify-between group-hover:bg-[#FFC107]/5 transition-colors group/btn"
+                    >
+                      <span className="text-[#121212] font-black tracking-tighter">
+                        {pendingRequests.length} Pending Requests
+                      </span>
+                      <ChevronRight className="text-gray-300 group-hover/btn:translate-x-1 transition-transform" />
                     </button>
                   </div>
-                ) : (
-                  activePools.map(pool => {
-                    const pendingRequests = pendingRequestsByPool[pool.id] || [];
-                    return (
-                      <div key={pool.id} className="bg-white rounded-3xl border border-gray-100 p-8 shadow-lg group">
-                        <div className="flex flex-col md:flex-row justify-between md:items-start gap-6 mb-8">
-                          <div>
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${pool.status === 'full' ? 'bg-orange-100 text-orange-600' : 'bg-[#FFC107]/20 text-accent-yellow'}`}>
-                                {pool.status}
-                              </span>
-                              <span className="text-gray-300">•</span>
-                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{pool.mode_of_transport}</span>
+
+                  {reviewingPoolId === pool.id && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      className="mt-8 pt-8 border-t border-gray-50 grid grid-cols-1 md:grid-cols-2 gap-4"
+                    >
+                      {requestPanel.length === 0 ? (
+                        <p className="text-xs font-bold text-gray-400 italic col-span-2">No pending requests found in the records.</p>
+                      ) : (
+                        requestPanel.map((req: any) => (
+                          <div key={req.id} className="bg-gray-50/50 rounded-2xl p-6 border border-gray-100">
+                            <div className="flex items-center gap-3 mb-4">
+                              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center border border-gray-100">
+                                <User size={20} className="text-gray-300" />
+                              </div>
+                              <div>
+                                <h4 className="font-black text-[#121212] text-sm">{req.user_profiles?.name || 'Rider'}</h4>
+                                <p className="text-[10px] font-bold text-gray-400">Match Accuracy: {Number(req.heuristic_score || 0).toFixed(0)}%</p>
+                              </div>
                             </div>
-                            <h3 className="text-2xl font-black text-[#121212] tracking-tighter mb-2">{pool.source_text} <ChevronRight className="inline mx-1 text-[#FFC107]" /> {pool.dest_text}</h3>
-                            <p className="text-sm font-bold text-gray-400 flex items-center gap-2">
-                              <Calendar size={14} className="text-[#FFC107]" />
-                              {new Date(pool.time_window_start).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                            </p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => respondToRequest(req.id, true)}
+                                className="flex-1 py-3 bg-[#121212] text-[#FFC107] rounded-xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-transform"
+                              >
+                                Accept
+                              </button>
+                              <button
+                                onClick={() => respondToRequest(req.id, false)}
+                                className="flex-1 py-3 bg-white border border-gray-100 text-gray-400 rounded-xl font-black text-[10px] uppercase tracking-widest hover:text-red-500 transition-colors"
+                              >
+                                Reject
+                              </button>
+                            </div>
                           </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => navigate(`/chat/${pool.id}`)}
-                              className="w-12 h-12 bg-[#121212] text-[#FFC107] rounded-xl flex items-center justify-center hover:scale-110 transition-transform"
-                            >
-                              <MessageSquare size={20} />
-                            </button>
-                            <button
-                              onClick={() => handleEndPool(pool.id)}
-                              className="px-6 h-12 bg-red-50 text-red-500 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-sm"
-                            >
-                              End Ride
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col md:flex-row gap-4">
-                          <button
-                            onClick={() => loadRequestsForPool(pool.id)}
-                            className="flex-1 px-8 h-16 bg-gray-50 rounded-2xl flex items-center justify-between group-hover:bg-[#FFC107]/5 transition-colors group/btn"
-                          >
-                            <span className="text-[#121212] font-black tracking-tighter">
-                              {pendingRequests.length} Pending Requests
-                            </span>
-                            <ChevronRight className="text-gray-300 group-hover/btn:translate-x-1 transition-transform" />
-                          </button>
-                        </div>
-
-                        {reviewingPoolId === pool.id && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            className="mt-8 pt-8 border-t border-gray-50 grid grid-cols-1 md:grid-cols-2 gap-4"
-                          >
-                            {requestPanel.length === 0 ? (
-                              <p className="text-xs font-bold text-gray-400 italic col-span-2">No pending requests found in the records.</p>
-                            ) : (
-                              requestPanel.map((req: any) => (
-                                <div key={req.id} className="bg-gray-50/50 rounded-2xl p-6 border border-gray-100">
-                                  <div className="flex items-center gap-3 mb-4">
-                                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center border border-gray-100">
-                                      <User size={20} className="text-gray-300" />
-                                    </div>
-                                    <div>
-                                      <h4 className="font-black text-[#121212] text-sm">{req.user_profiles?.name || 'Rider'}</h4>
-                                      <p className="text-[10px] font-bold text-gray-400">Match Accuracy: {Number(req.heuristic_score || 0).toFixed(0)}%</p>
-                                    </div>
-                                  </div>
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={() => respondToRequest(req.id, true)}
-                                      className="flex-1 py-3 bg-[#121212] text-[#FFC107] rounded-xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-transform"
-                                    >
-                                      Accept
-                                    </button>
-                                    <button
-                                      onClick={() => respondToRequest(req.id, false)}
-                                      className="flex-1 py-3 bg-white border border-gray-100 text-gray-400 rounded-xl font-black text-[10px] uppercase tracking-widest hover:text-red-500 transition-colors"
-                                    >
-                                      Reject
-                                    </button>
-                                  </div>
-                                </div>
-                              ))
-                            )}
-                          </motion.div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </motion.div>
-            )}
+                        ))
+                      )}
+                    </motion.div>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })
+      )}
+    </motion.div>
+  )}
 
             {activeTab === 'history' && (
               <motion.div

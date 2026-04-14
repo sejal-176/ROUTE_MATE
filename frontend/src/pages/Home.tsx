@@ -121,11 +121,25 @@ const Home = () => {
     setLoading(true);
     try {
       const res = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchFrom)}`);
+      let destLat, destLng;
+      if (searchTo) {
+          const destRes = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchTo)}`);
+          if (destRes.data && destRes.data.length > 0) {
+             destLat = parseFloat(destRes.data[0].lat);
+             destLng = parseFloat(destRes.data[0].lon);
+          }
+      }
       if (res.data && res.data.length > 0) {
         const lat = parseFloat(res.data[0].lat);
         const lng = parseFloat(res.data[0].lon);
         setLocation({ lat, lng });
-        fetchNearbyPools(lat, lng);
+
+        const { data: { user } } = await supabase.auth.getUser();
+        const response = await axios.post(`${API_BASE_URL}/pools/nearby`, {
+          lat, lng, radius_km: 15.0, user_id: user?.id,
+          dest_lat: destLat, dest_lng: destLng, search_date: searchDate, search_time: searchTime
+        });
+        setPools(response.data.pools || []);
         resultsRef.current?.scrollIntoView({ behavior: 'smooth' });
       }
     } catch (err) {

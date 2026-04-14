@@ -232,6 +232,13 @@ const PoolChat = () => {
       </aside>
 
       {/* MAIN: CHAT AREA */}
+      {(!isMember && !isCreator) ? (
+         <main className="flex-1 bg-white rounded-3xl border border-gray-100 shadow-lg flex flex-col items-center justify-center relative p-8 text-center text-gray-400">
+           <ShieldCheck size={64} className="text-gray-200 mb-4" />
+           <h3 className="text-2xl font-black text-[#121212] tracking-tighter mb-2">Access Restricted</h3>
+           <p className="font-bold text-sm">Join this pool and wait for the captain's approval to enter the chat.</p>
+         </main>
+      ) : (
       <main className="flex-1 bg-white rounded-3xl border border-gray-100 shadow-lg flex flex-col overflow-hidden relative">
         <div className="px-8 py-6 border-b border-gray-50 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -291,6 +298,7 @@ const PoolChat = () => {
           </div>
         </form>
       </main>
+      )}
     </motion.div>
   );
 };

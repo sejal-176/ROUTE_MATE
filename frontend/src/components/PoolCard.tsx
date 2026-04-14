@@ -132,7 +132,7 @@ const PoolCard = ({ pool, compact = false }: PoolCardProps) => {
           <div className="w-6 h-6 rounded-full bg-[#121212] border-4 border-white shadow-sm flex items-center justify-center" />
           <div className="flex flex-col">
             <span className="text-[10px] font-bold text-gray-400 uppercase">From</span>
-            <span className="text-sm font-bold text-[#121212] truncate">{pool.start_location}</span>
+            <span className="text-sm font-bold text-[#121212] truncate">{pool.source_text || pool.start_location}</span>
           </div>
         </div>
 
@@ -140,7 +140,7 @@ const PoolCard = ({ pool, compact = false }: PoolCardProps) => {
           <div className="w-6 h-6 rounded-full bg-[#FFC107] border-4 border-white shadow-sm flex items-center justify-center" />
           <div className="flex flex-col">
             <span className="text-[10px] font-bold text-gray-400 uppercase">To</span>
-            <span className="text-sm font-bold text-[#121212] truncate">{pool.end_location}</span>
+            <span className="text-sm font-bold text-[#121212] truncate">{pool.dest_text || pool.end_location}</span>
           </div>
         </div>
       </div>
@@ -148,9 +148,13 @@ const PoolCard = ({ pool, compact = false }: PoolCardProps) => {
       {/* Meta Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-gray-50 mt-auto">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5 font-bold text-xs text-gray-500">
+          <div className="flex items-center gap-1.5 font-bold text-[10px] text-gray-500 uppercase tracking-widest">
             <Clock size={14} className="text-[#FFC107]" />
-            <span>{pool.start_time || '09:00 AM'}</span>
+            <span>
+              {pool.time_window_start 
+                ? new Date(pool.time_window_start).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' }) 
+                : (pool.start_time || '09:00 AM')}
+            </span>
           </div>
           <div className="flex items-center gap-1.5 font-bold text-xs text-gray-500">
             <Users size={14} className="text-[#FFC107]" />
@@ -163,10 +167,10 @@ const PoolCard = ({ pool, compact = false }: PoolCardProps) => {
             <button
               type="button"
               onClick={handleJoin}
-              disabled={requestSent || isRequestPending || pool.available_seats <= 0}
+              disabled={requestSent || isRequestPending || pool.status === 'full' || pool.available_seats <= 0}
               className="rounded-2xl px-4 py-2 text-xs font-black uppercase tracking-widest transition-all duration-200 text-[#121212] bg-[#FFC107] disabled:bg-gray-300 disabled:text-gray-600 hover:bg-[#121212] hover:text-[#FFC107]"
             >
-              {requestSent ? 'Requested' : isRequestPending ? 'Requesting...' : pool.available_seats <= 0 ? 'Full' : 'Join'}
+              {requestSent ? 'Requested' : isRequestPending ? 'Requesting...' : (pool.status === 'full' || pool.available_seats <= 0) ? 'Pool Full' : 'Join'}
             </button>
           ) : isAlreadyMember ? (
             <div className="rounded-2xl px-4 py-2 text-xs font-black uppercase tracking-widest text-white bg-[#121212] bg-opacity-90">

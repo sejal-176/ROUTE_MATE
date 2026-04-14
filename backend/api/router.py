@@ -30,6 +30,10 @@ class NearbyRequest(BaseModel):
     lng: float
     radius_km: float = 0.5 # Default is small, but frontend can override
     user_id: Optional[str] = None
+    dest_lat: Optional[float] = None
+    dest_lng: Optional[float] = None
+    search_date: Optional[str] = None
+    search_time: Optional[str] = None
     
 class MatchRequest(BaseModel):
     pool_id: str
@@ -46,8 +50,7 @@ async def get_nearby_pools(req: NearbyRequest):
             base_params = {
                 # Only show pools that are currently available for ride matching.
                 # Do not include completed or dissolved pools in the nearby listing.
-                "status": "in.(open,active,full)",
-                "available_seats": "gt.0",
+                "status": "in.(open,active,full)"
             }
 
             if req.radius_km > 0:
@@ -80,6 +83,16 @@ async def get_nearby_pools(req: NearbyRequest):
             
             # 3. RADIUS FILTER
             if dist <= req.radius_km:
+                # 4. Optional Time/Date/Dest Filters
+                if req.search_date:
+                    pool_date = p.get('time_window_start', '').split('T')[0]
+                    if pool_date != req.search_date:
+                        continue
+                if req.dest_lat and req.dest_lng:
+                    dest_dist = haversine_distance(req.dest_lat, req.dest_lng, float(p.get('dest_lat', 0)), float(p.get('dest_lng', 0)))
+                    if dest_dist > req.radius_km:
+                        continue
+                        
                 p['distance_km'] = round(dist, 2)
                 nearby_pools.append(p)
                 
@@ -123,25 +136,20 @@ async def get_pool_requests_scored(pool_id: str):
                     profiles[profile['id']] = profile
 
         scored_requests = []
-        # Reuse client for patches
-        async with httpx.AsyncClient() as client:
-            for req in requests:
-                score = calculate_heuristic_score(
-                    pool_source=(float(pool['source_lat']), float(pool['source_lng'])),
-                    pool_dest=(float(pool['dest_lat']), float(pool['dest_lng'])),
-                    pool_time=pool['time_window_start'],
-                    req_source=(float(req['requester_source_lat']), float(req['requester_source_lng'])),
-                    req_dest=(float(req['requester_dest_lat']), float(req['requester_dest_lng'])),
-                    req_time=req['requester_time']
-                )
+        for req in requests:
+            score = calculate_heuristic_score(
+                pool_source=(float(pool['source_lat']), float(pool['source_lng'])),
+                pool_dest=(float(pool['dest_lat']), float(pool['dest_lng'])),
+                pool_time=pool['time_window_start'],
+                req_source=(float(req['requester_source_lat']), float(req['requester_source_lng'])),
+                req_dest=(float(req['requester_dest_lat']), float(req['requester_dest_lng'])),
+                req_time=req['requester_time']
+            )
 
-                req['user_profiles'] = profiles.get(req['requester_id'])
-                # Update score in DB
-                update_url = f"{SUPABASE_URL}/rest/v1/pool_requests?id=eq.{req['id']}"
-                await client.patch(update_url, headers=headers, json={"heuristic_score": score})
-
-                req['heuristic_score'] = score
-                scored_requests.append(req)
+            req['user_profiles'] = profiles.get(req['requester_id'])
+            # Note: Removed iterative DB patches here to resolve the N+1 latency issue. Dynamic calc is enough.
+            req['heuristic_score'] = score
+            scored_requests.append(req)
             
         scored_requests.sort(key=lambda x: x['heuristic_score'], reverse=True)
         return {"requests": scored_requests}
@@ -158,8 +166,8 @@ async def respond_to_pool_request(requestId: str, body: RequestResponse):
     headers = get_headers()
     try:
         async with httpx.AsyncClient() as client:
-            req_url = f"{SUPABASE_URL}/rest/v1/pool_requests?id=eq.{requestId}"
-            req_res = await client.get(req_url, headers=headers)
+            req_url = f"{SUPABASE_URL}/rest/v1/pool_requests"
+            req_res = await client.get(req_url, headers=headers, params={"id": f"eq.{requestId}"})
             req_res.raise_for_status()
             req_data = req_res.json()
             print(f"DEBUG: Supabase returned: {req_data}")
@@ -169,8 +177,8 @@ async def respond_to_pool_request(requestId: str, body: RequestResponse):
             pool_id = request_record['pool_id']
 
             if body.status == 'accepted':
-                pool_url = f"{SUPABASE_URL}/rest/v1/pools?id=eq.{pool_id}"
-                pool_res = await client.get(pool_url, headers=headers)
+                pool_url = f"{SUPABASE_URL}/rest/v1/pools"
+                pool_res = await client.get(pool_url, headers=headers, params={"id": f"eq.{pool_id}"})
                 pool_res.raise_for_status()
                 pool_data = pool_res.json()
                 if not pool_data:
@@ -186,11 +194,11 @@ async def respond_to_pool_request(requestId: str, body: RequestResponse):
                 if new_seats <= 0:
                     pool_update['status'] = 'full'
 
-                update_pool_url = f"{SUPABASE_URL}/rest/v1/pools?id=eq.{pool_id}"
-                await client.patch(update_pool_url, headers=headers, json=pool_update)
+                update_pool_url = f"{SUPABASE_URL}/rest/v1/pools"
+                await client.patch(update_pool_url, headers=headers, params={"id": f"eq.{pool_id}"}, json=pool_update)
 
-            update_req_url = f"{SUPABASE_URL}/rest/v1/pool_requests?id=eq.{requestId}"
-            await client.patch(update_req_url, headers=headers, json={"status": body.status})
+            update_req_url = f"{SUPABASE_URL}/rest/v1/pool_requests"
+            await client.patch(update_req_url, headers=headers, params={"id": f"eq.{requestId}"}, json={"status": body.status})
 
         return {"status": "ok", "request_id": requestId, "new_status": body.status}
     except Exception as e:
