@@ -1,0 +1,3 @@
+# Root Python requirements for the project
+# Install backend dependencies from the backend requirements file.
+-r backend/requirements.txt
