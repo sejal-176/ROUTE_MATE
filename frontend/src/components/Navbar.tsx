@@ -79,7 +79,17 @@ const Navbar = ({ session, compact = false }: { session: any; compact?: boolean 
           )}
         </div>
 
-        {/* Mobile Actions - Removed hamburger as BottomNav handles navigation */}
+        {/* Mobile Actions */}
+        <div className="flex md:hidden items-center gap-4">
+          {!session && (
+            <button
+              onClick={() => navigate('/auth')}
+              className="px-4 py-2 bg-[#FFC107] text-[#121212] rounded-xl font-bold text-sm hover:shadow-lg transition-all"
+            >
+              Get Started
+            </button>
+          )}
+        </div>
       </div>
     </motion.nav>
   );

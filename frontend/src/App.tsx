@@ -69,7 +69,7 @@ function AppContent() {
         </Routes>
       </AnimatePresence>
 
-      <BottomNav />
+      <BottomNav session={session} />
     </div>
   );
 }

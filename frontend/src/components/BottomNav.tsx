@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { Home, Search, Calendar, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-const BottomNav = () => {
+const BottomNav = ({ session }: { session: any }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -26,7 +26,11 @@ const BottomNav = () => {
         }, 100);
       }
     } else {
-      navigate(path);
+      if ((path.includes('/profile')) && !session) {
+        navigate('/auth');
+      } else {
+        navigate(path);
+      }
     }
   };
 
