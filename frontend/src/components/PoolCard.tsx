@@ -1,6 +1,6 @@
 import { useState, useEffect, type MouseEvent } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Clock, ArrowRight, User, Star, StarHalf } from 'lucide-react';
+import { Users, Clock, User, Star, StarHalf } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
@@ -54,7 +54,7 @@ const PoolCard = ({ pool, compact = false }: PoolCardProps) => {
 
     const fetchCreatorProfile = async () => {
       if (!pool?.creator_id) return;
-      
+
       try {
         // Fetch name
         const { data: profile } = await supabase
@@ -70,7 +70,7 @@ const PoolCard = ({ pool, compact = false }: PoolCardProps) => {
           .from('ratings')
           .select('score')
           .eq('ratee_id', pool.creator_id);
-        
+
         if (ratings && ratings.length > 0) {
           const avg = ratings.reduce((sum, item) => sum + Number(item.score || 0), 0) / ratings.length;
           setCreatorRating(avg);
@@ -156,7 +156,7 @@ const PoolCard = ({ pool, compact = false }: PoolCardProps) => {
                   {[1, 2, 3, 4, 5].map((star) => {
                     const isFull = creatorRating >= star;
                     const isHalf = !isFull && creatorRating >= star - 0.5;
-                    
+
                     if (isFull) {
                       return <Star key={star} size={12} className="fill-[#FFC107] text-[#FFC107]" />;
                     } else if (isHalf) {
@@ -203,8 +203,8 @@ const PoolCard = ({ pool, compact = false }: PoolCardProps) => {
           <div className="flex flex-col gap-0.5 font-bold text-[10px] text-gray-500 uppercase tracking-widest">
             <div className="flex items-center gap-1.5 text-[#FFC107]"><Clock size={12} /> <span className="text-gray-400">Time</span></div>
             <span className="text-[#121212]">
-              {pool.time_window_start 
-                ? new Date(pool.time_window_start).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' }) 
+              {pool.time_window_start
+                ? new Date(pool.time_window_start).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
                 : (pool.start_time || '09:00 AM')}
             </span>
           </div>

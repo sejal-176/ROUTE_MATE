@@ -100,7 +100,7 @@ const CreatePool = () => {
     try {
       const res = await axios.get(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`,
-        
+
       );
       if (res.data && res.data.length > 0) {
         return { lat: parseFloat(res.data[0].lat), lng: parseFloat(res.data[0].lon) };
@@ -123,7 +123,7 @@ const CreatePool = () => {
 
       let sourceCoords = { lat: formData.sourceLat, lng: formData.sourceLng };
       let destCoords = { lat: formData.destLat, lng: formData.destLng };
-      
+
       if (!sourceCoords.lat || !sourceCoords.lng) {
         sourceCoords = await handleGeocode(formData.sourceText);
       }
@@ -202,7 +202,7 @@ const CreatePool = () => {
                   <LocationAutocomplete
                     value={formData.sourceText}
                     onChange={(val) => setFormData(prev => ({ ...prev, sourceText: val }))}
-                    onSelectLocation={(lat, lng, name) => setFormData(prev => ({ ...prev, sourceLat: lat, sourceLng: lng }))}
+                    onSelectLocation={(lat, lng) => setFormData(prev => ({ ...prev, sourceLat: lat, sourceLng: lng }))}
                     placeholder="e.g. Bandra Station"
                     icon={<Navigation className="text-[#FFC107]" size={18} />}
                   />
@@ -222,7 +222,7 @@ const CreatePool = () => {
                   <LocationAutocomplete
                     value={formData.destText}
                     onChange={(val) => setFormData(prev => ({ ...prev, destText: val }))}
-                    onSelectLocation={(lat, lng, name) => setFormData(prev => ({ ...prev, destLat: lat, destLng: lng }))}
+                    onSelectLocation={(lat, lng) => setFormData(prev => ({ ...prev, destLat: lat, destLng: lng }))}
                     placeholder="e.g. Nariman Point"
                     icon={<MapPin className="text-[#FFC107]" size={18} />}
                   />
@@ -238,36 +238,36 @@ const CreatePool = () => {
                 </div>
               </div>
 
-              
-                <div className="flex flex-col gap-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Seats</label>
-                  <div className="relative">
-                    <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-[#FFC107]" size={18} />
-                    <input
-                      type="number"
-                      min="1" max="10"
-                      className="input-premium pl-12"
-                      value={formData.capacity}
-                      onChange={e => setFormData({ ...formData, capacity: parseInt(e.target.value) })}
-                      required
-                    />
-                  </div>
-                </div>
 
-                <div className="flex flex-col gap-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Vehicle</label>
-                  <select
-                    className="input-premium"
-                    value={formData.modeOfTransport}
-                    onChange={e => setFormData({ ...formData, modeOfTransport: e.target.value })}
-                  >
-                    <option value="Car">Car</option>
-                    <option value="Bike">Bike</option>
-                    <option value="Auto">Auto</option>
-                  </select>
+              <div className="flex flex-col gap-3">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Seats</label>
+                <div className="relative">
+                  <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-[#FFC107]" size={18} />
+                  <input
+                    type="number"
+                    min="1" max="10"
+                    className="input-premium pl-12"
+                    value={formData.capacity}
+                    onChange={e => setFormData({ ...formData, capacity: parseInt(e.target.value) })}
+                    required
+                  />
                 </div>
+              </div>
 
-                
+              <div className="flex flex-col gap-3">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Vehicle</label>
+                <select
+                  className="input-premium"
+                  value={formData.modeOfTransport}
+                  onChange={e => setFormData({ ...formData, modeOfTransport: e.target.value })}
+                >
+                  <option value="Car">Car</option>
+                  <option value="Bike">Bike</option>
+                  <option value="Auto">Auto</option>
+                </select>
+              </div>
+
+
 
               <div className="flex flex-col gap-3">
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Departure Time</label>
