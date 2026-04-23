@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RouteMate API Explorer</title>
+<style>
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #f9f9f9;
+  --color-background-tertiary: #f0f0f0;
+  --color-text-primary: #111111;
+  --color-text-secondary: #555555;
+  --color-text-tertiary: #888888;
+  --color-border-primary: #dddddd;
+  --color-border-secondary: #eeeeee;
+  --color-border-tertiary: #e0e0e0;
+  --border-radius-md: 6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-mono);font-size:13px;background:var(--color-background-primary);color:var(--color-text-primary)}
+.root{padding:1rem 2rem; max-width: 1000px; margin: 0 auto;}
+.header{padding:0 0 1.5rem}
+.header h1{font-size:22px;font-weight:500;color:var(--color-text-primary);font-family:var(--font-sans);letter-spacing:-0.5px}
+.header p{font-size:13px;color:var(--color-text-secondary);margin-top:4px;font-family:var(--font-sans)}
+.badges{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.badge{font-size:11px;padding:3px 8px;border-radius:var(--border-radius-md);font-family:var(--font-sans)}
+.b-green{background:#EAF3DE;color:#3B6D11}.b-blue{background:#E6F1FB;color:#185FA5}.b-amber{background:#FAEEDA;color:#854F0B}
+.tag-section{margin-bottom:1.5rem}
+.tag-header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--color-background-secondary);border:1px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);cursor:pointer;user-select:none}
+.tag-header:hover{background:var(--color-background-tertiary)}
+.tag-name{font-size:14px;font-weight:500;color:var(--color-text-primary);font-family:var(--font-sans);flex:1}
+.tag-count{font-size:11px;color:var(--color-text-secondary);font-family:var(--font-sans)}
+.tag-arrow{font-size:10px;color:var(--color-text-tertiary);transition:transform 0.2s}
+.tag-arrow.open{transform:rotate(90deg)}
+.endpoint-list{border:1px solid var(--color-border-tertiary);border-top:none;border-radius:0 0 var(--border-radius-md) var(--border-radius-md);overflow:hidden}
+.endpoint-row{border-bottom:1px solid var(--color-border-tertiary);cursor:pointer}
+.endpoint-row:last-child{border-bottom:none}
+.endpoint-header{display:flex;align-items:center;gap:10px;padding:10px 14px}
+.endpoint-header:hover{background:var(--color-background-secondary)}
+.method{font-size:11px;font-weight:500;padding:2px 7px;border-radius:4px;min-width:48px;text-align:center;font-family:var(--font-sans)}
+.m-get{background:#EAF3DE;color:#3B6D11}
+.m-post{background:#E6F1FB;color:#185FA5}
+.m-put{background:#FAEEDA;color:#854F0B}
+.m-delete{background:#FCEBEB;color:#A32D2D}
+.ep-path{color:var(--color-text-primary);font-size:12px;flex:1}
+.auth-icon{font-size:11px;color:var(--color-text-tertiary)}
+.ep-desc{font-size:12px;color:var(--color-text-secondary);font-family:var(--font-sans)}
+.endpoint-detail{background:var(--color-background-primary);border-top:1px solid var(--color-border-tertiary);padding:16px;cursor:default}
+.detail-section{margin-bottom:14px}
+.detail-label{font-size:11px;font-weight:500;color:var(--color-text-secondary);font-family:var(--font-sans);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}
+.param-table{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--font-sans)}
+.param-table th{font-size:11px;color:var(--color-text-secondary);font-weight:500;text-align:left;padding:4px 8px;border-bottom:1px solid var(--color-border-tertiary)}
+.param-table td{padding:5px 8px;border-bottom:1px solid var(--color-border-tertiary);color:var(--color-text-primary);vertical-align:top}
+.param-table tr:last-child td{border-bottom:none}
+.req-pill{font-size:10px;padding:1px 5px;border-radius:3px;background:#FCEBEB;color:#A32D2D}
+.opt-pill{font-size:10px;padding:1px 5px;border-radius:3px;background:#F1EFE8;color:#5F5E5A}
+.type-text{color:var(--color-text-secondary);font-size:11px}
+.code-block{background:var(--color-background-secondary);border:1px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:10px 12px;font-size:11px;white-space:pre-wrap;word-break:break-all;line-height:1.6;color:var(--color-text-primary);font-family:var(--font-mono)}
+.try-btn{background:transparent;border:1px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:6px 14px;font-size:12px;color:var(--color-text-primary);cursor:pointer;font-family:var(--font-sans)}
+.try-btn:hover{background:var(--color-background-secondary);border-color:var(--color-border-tertiary)}
+.try-panel{margin-top:12px;border:1px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);overflow:hidden}
+.try-panel-header{padding:8px 12px;background:var(--color-background-secondary);border-bottom:1px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);font-family:var(--font-sans)}
+.try-panel-body{padding:12px}
+.try-field{margin-bottom:10px}
+.try-field label{display:block;font-size:11px;color:var(--color-text-secondary);margin-bottom:4px;font-family:var(--font-sans)}
+.try-field input,.try-field textarea,.try-field select{width:100%;padding:6px 8px;border:1px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary);font-size:12px;font-family:var(--font-mono)}
+.try-field textarea{height:80px;resize:vertical}
+.exec-btn{background:transparent;border:1px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:7px 18px;font-size:12px;color:var(--color-text-primary);cursor:pointer;font-family:var(--font-sans)}
+.exec-btn:hover{background:var(--color-background-secondary);border-color:var(--color-border-tertiary)}
+.response-box{margin-top:10px;border:1px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);overflow:hidden}
+.resp-header{padding:6px 10px;font-size:11px;font-family:var(--font-sans);display:flex;align-items:center;gap:8px}
+.resp-200{background:#EAF3DE;color:#3B6D11}
+.resp-4xx{background:#FAEEDA;color:#854F0B}
+.resp-5xx{background:#FCEBEB;color:#A32D2D}
+.resp-body{padding:10px 12px;background:var(--color-background-secondary);font-size:11px;white-space:pre-wrap;word-break:break-all;font-family:var(--font-mono);color:var(--color-text-primary);line-height:1.6}
+.err-table{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--font-sans)}
+.err-table td{padding:4px 8px;border-bottom:1px solid var(--color-border-tertiary);vertical-align:top}
+.err-table tr:last-child td{border-bottom:none}
+.hidden{display:none}
+.search-bar{display:flex;gap:8px;margin-bottom:1.5rem;align-items:center}
+.search-bar input{flex:1;padding:8px 12px;border:1px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary);font-size:13px;font-family:var(--font-sans)}
+.search-bar input:focus{outline:none;border-color:var(--color-border-tertiary)}
+.filter-btns{display:flex;gap:6px}
+.filter-btn{padding:5px 10px;border:1px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:transparent;color:var(--color-text-secondary);font-size:11px;cursor:pointer;font-family:var(--font-sans)}
+.filter-btn.active{background:var(--color-background-secondary);color:var(--color-text-primary);border-color:var(--color-border-primary)}
+</style>
+</head>
+<body>
+<div class="root">
+<div class="header">
+  <h1>RouteMate API Explorer</h1>
+  <p>Base URL: <code>http://localhost:8000</code> &nbsp;·&nbsp; FastAPI Backend Endpoints</p>
+  <div class="badges">
+    <span class="badge b-amber">RouteMate Backend</span>
+    <span class="badge b-green">Supabase RLS Bypass</span>
+    <span class="badge b-blue">FastAPI</span>
+  </div>
+</div>
+
+<div class="search-bar">
+  <input type="text" id="searchInput" placeholder="Search endpoints..." oninput="filterEndpoints()">
+  <div class="filter-btns">
+    <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+    <button class="filter-btn" onclick="setFilter('GET',this)">GET</button>
+    <button class="filter-btn" onclick="setFilter('POST',this)">POST</button>
+  </div>
+</div>
+
+<div id="apiDocs"></div>
+</div>
+
+<script>
+const API = [
+  {
+    tag: "RouteMate Core",
+    desc: "Ride matching & pool management",
+    endpoints: [
+      {
+        method: "GET",
+        path: "/",
+        auth: "public",
+        summary: "Root-level API health check",
+        response: `{\n  "message": "Welcome to the ROUTEMATE API!"\n}`,
+        errors: []
+      },
+      {
+        method: "POST",
+        path: "/api/pools/nearby",
+        auth: "public",
+        summary: "Get nearby pools based on user location",
+        params: [
+          {name: "lat", type: "number", req: true, desc: "User's current latitude"},
+          {name: "lng", type: "number", req: true, desc: "User's current longitude"},
+          {name: "radius_km", type: "number", req: false, desc: "Search radius in km (defaults to 0.5)"},
+          {name: "user_id", type: "string", req: false, desc: "User ID"},
+          {name: "dest_lat", type: "number", req: false, desc: "Destination latitude"},
+          {name: "dest_lng", type: "number", req: false, desc: "Destination longitude"},
+          {name: "search_date", type: "string", req: false, desc: "Format YYYY-MM-DD"},
+          {name: "search_time", type: "string", req: false, desc: "Time parameter"}
+        ],
+        response: `{
+  "pools": [
+    {
+      "id": "uuid",
+      "source_lat": 12.3,
+      "source_lng": 45.6,
+      "distance_km": 0.4
+    }
+  ]
+}`,
+        errors: [
+          {status: "400", code: "BAD_REQUEST", when: "Invalid input or error in distance calc"}
+        ]
+      },
+      {
+        method: "GET",
+        path: "/api/pools/:pool_id/requests",
+        auth: "public",
+        summary: "Get requests for a pool (Includes heuristic matching score)",
+        urlParams: [
+          {name: "pool_id", type: "UUID", desc: "The ID of the pool"}
+        ],
+        response: `{
+  "requests": [
+    {
+      "id": "uuid",
+      "heuristic_score": 95.5,
+      "user_profiles": { "full_name": "John Doe", "avatar": "url..." }
+    }
+  ]
+}`,
+        errors: [
+          {status: "404", code: "NOT_FOUND", when: "Pool not found"},
+          {status: "400", code: "BAD_REQUEST", when: "Error fetching pool"}
+        ]
+      },
+      {
+        method: "POST",
+        path: "/api/api/pool_requests/:requestId/respond",
+        auth: "public",
+        summary: "Accept or reject a pool request (Bypasses RLS)",
+        urlParams: [
+          {name: "requestId", type: "UUID", desc: "The ID of the pool request to respond to"}
+        ],
+        params: [
+          {name: "status", type: "string", req: true, desc: '"accepted" or "rejected"'}
+        ],
+        response: `{
+  "status": "ok",
+  "request_id": "uuid",
+  "new_status": "accepted"
+}`,
+        errors: [
+          {status: "400", code: "BAD_REQUEST", when: "Invalid request status or pool is already full"},
+          {status: "404", code: "NOT_FOUND", when: "Request or Pool not found"}
+        ]
+      }
+    ]
+  }
+];
+
+const authLabels = {
+  "public": "🔓 Public"
+};
+
+let activeFilter = 'all';
+let openSections = {};
+let openEndpoints = {};
+let showTry = {};
+
+function methodClass(m){return 'm-'+m.toLowerCase()}
+
+function renderAuth(a){
+  const map = {
+    "public":{bg:"#EAF3DE",c:"#3B6D11",t:"Public"}
+  };
+  const s=map[a]||map.public;
+  return `<span style="font-size:10px;padding:2px 6px;border-radius:3px;background:${s.bg};color:${s.c};font-family:var(--font-sans)">${s.t}</span>`;
+}
+
+function renderParams(params,label){
+  if(!params||!params.length)return '';
+  return `<div class="detail-section">
+    <div class="detail-label">${label}</div>
+    <table class="param-table">
+      <tr><th>Name</th><th>Type</th><th>Req</th><th>Description</th></tr>
+      ${params.map(p=>`<tr>
+        <td><code>${p.name}</code></td>
+        <td class="type-text">${p.type}</td>
+        <td>${p.req===true?'<span class="req-pill">req</span>':p.req===false?'<span class="opt-pill">opt</span>':''}</td>
+        <td style="color:var(--color-text-secondary)">${p.desc||''}</td>
+      </tr>`).join('')}
+    </table>
+  </div>`;
+}
+
+function renderErrors(errors){
+  if(!errors||!errors.length)return '';
+  return `<div class="detail-section">
+    <div class="detail-label">Possible Errors</div>
+    <table class="err-table">
+      ${errors.map(e=>`<tr>
+        <td style="min-width:36px"><span style="font-size:11px;padding:2px 6px;border-radius:3px;background:#FAEEDA;color:#854F0B;font-family:var(--font-sans)">${e.status}</span></td>
+        <td><code style="font-size:11px">${e.code}</code></td>
+        <td style="color:var(--color-text-secondary);font-size:12px;font-family:var(--font-sans)">${e.when}</td>
+      </tr>`).join('')}
+    </table>
+  </div>`;
+}
+
+function buildTryPanel(ep,key){
+  const fields = [
+    ...(ep.urlParams||[]).map(p=>({name:p.name,placeholder:p.type,body:false})),
+    ...(ep.params||[]).map(p=>({name:p.name,placeholder:p.desc||p.type,body:true}))
+  ];
+  return `<div class="try-panel" id="try-${key}">
+    <div class="try-panel-header">Try it — requests go to your local server at http://localhost:8000</div>
+    <div class="try-panel-body">
+      ${fields.map(f=>`<div class="try-field">
+        <label>${f.name}${f.header?' (header)':f.body?' (body)':' (path)'}</label>
+        <input type="text" placeholder="${f.placeholder}" id="f-${key}-${f.name.replace(/[^a-z0-9]/gi,'_')}">
+      </div>`).join('')}
+      <button class="exec-btn" onclick="execRequest('${key}')">Execute</button>
+      <div id="resp-${key}"></div>
+    </div>
+  </div>`;
+}
+
+async function execRequest(key){
+  const parts = key.split('::');
+  const ti = parseInt(parts[0]), ei = parseInt(parts[1]);
+  const ep = API[ti].endpoints[ei];
+  
+  let url = 'http://localhost:8000' + ep.path;
+  const headers = {'Content-Type':'application/json'};
+  const bodyObj = {};
+  
+  (ep.urlParams||[]).forEach(p=>{
+    const el = document.getElementById(`f-${key}-${p.name}`);
+    if(el&&el.value) url = url.replace(':'+p.name, el.value);
+  });
+  
+  (ep.params||[]).forEach(p=>{
+    const el = document.getElementById(`f-${key}-${p.name}`);
+    if(el&&el.value) {
+      if(p.type === 'number') {
+        bodyObj[p.name] = Number(el.value);
+      } else {
+        bodyObj[p.name] = el.value;
+      }
+    }
+  });
+  
+  const respEl = document.getElementById(`resp-${key}`);
+  respEl.innerHTML = '<div style="padding:8px;font-size:12px;color:var(--color-text-secondary);font-family:var(--font-sans)">Sending request...</div>';
+  
+  try {
+    const opts = {method:ep.method, headers};
+    if(['POST','PUT','PATCH'].includes(ep.method) && Object.keys(bodyObj).length>0){
+      opts.body = JSON.stringify(bodyObj);
+    }
+    const res = await fetch(url, opts);
+    let data;
+    try {
+        data = await res.json();
+    } catch(e) {
+        data = await res.text();
+    }
+    const cls = res.ok?'resp-200':res.status>=500?'resp-5xx':'resp-4xx';
+    respEl.innerHTML = `<div class="response-box">
+      <div class="resp-header ${cls}">${res.status} ${res.statusText}</div>
+      <div class="resp-body">${data ? (typeof data === 'object' ? JSON.stringify(data,null,2) : data) : '(empty response)'}</div>
+    </div>`;
+  } catch(e) {
+    respEl.innerHTML = `<div class="response-box">
+      <div class="resp-header resp-5xx">Network Error</div>
+      <div class="resp-body">${e.message}\\n\\nRequest: ${ep.method} ${url}\\n\\nCheck that:\\n1) Backend is running at http://localhost:8000\\n2) CORS is enabled on backend\\n3) URL/path is valid</div>
+    </div>`;
+  }
+}
+
+function toggleSection(ti){
+  openSections[ti] = !openSections[ti];
+  render();
+}
+
+function toggleEndpoint(key){
+  // Prevent click propagation from try button
+  if (event && event.target.classList.contains('try-btn')) return;
+  openEndpoints[key] = !openEndpoints[key];
+  render();
+}
+
+function toggleTry(key,e){
+  e.stopPropagation();
+  showTry[key] = !showTry[key];
+  render();
+}
+
+let filterMethod = 'all';
+let searchText = '';
+
+function setFilter(m, btn){
+  filterMethod = m;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function filterEndpoints(){
+  searchText = document.getElementById('searchInput').value.toLowerCase();
+  render();
+}
+
+// Automatically open the first section
+openSections[0] = true;
+
+function render(){
+  const container = document.getElementById('apiDocs');
+  let html = '';
+  
+  API.forEach((section,ti)=>{
+    const visibleEps = section.endpoints.filter(ep=>{
+      if(filterMethod!=='all'&&ep.method!==filterMethod) return false;
+      if(searchText&&!ep.path.toLowerCase().includes(searchText)&&!ep.summary.toLowerCase().includes(searchText)) return false;
+      return true;
+    });
+    if(!visibleEps.length) return;
+    
+    const isOpen = openSections[ti];
+    html += `<div class="tag-section">
+      <div class="tag-header" onclick="toggleSection(${ti})">
+        <span class="tag-name">${section.tag}</span>
+        <span class="tag-count">${visibleEps.length} endpoint${visibleEps.length!==1?'s':''}</span>
+        <span class="tag-arrow${isOpen?' open':''}">&#9658;</span>
+      </div>`;
+    
+    if(isOpen){
+      html += `<div class="endpoint-list">`;
+      visibleEps.forEach(ep=>{
+        const origIdx = section.endpoints.indexOf(ep);
+        const key = `${ti}::${origIdx}`;
+        const isEpOpen = openEndpoints[key];
+        html += `<div class="endpoint-row">
+          <div class="endpoint-header" onclick="toggleEndpoint('${key}')">
+            <span class="method ${methodClass(ep.method)}">${ep.method}</span>
+            <span class="ep-path">${ep.path}</span>
+            ${renderAuth(ep.auth)}
+            <span class="ep-desc" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ep.summary}</span>
+          </div>`;
+        
+        if(isEpOpen){
+          html += `<div class="endpoint-detail" onclick="event.stopPropagation()">
+            <div style="font-size:13px;color:var(--color-text-secondary);font-family:var(--font-sans);margin-bottom:14px">${ep.summary}</div>
+            ${renderParams(ep.urlParams,'Path Parameters')}
+            ${renderParams(ep.params, ep.method==='GET'?'Query Parameters':'Request Body')}
+            <div class="detail-section">
+              <div class="detail-label">Response Example</div>
+              <div class="code-block">${ep.response}</div>
+            </div>
+            ${renderErrors(ep.errors)}
+            <button class="try-btn" onclick="toggleTry('${key}',event)">${showTry[key]?'Hide':'Try it out'}</button>
+            ${showTry[key]?buildTryPanel(ep,key):''}
+          </div>`;
+        }
+        html += `</div>`;
+      });
+      html += `</div>`;
+    }
+    html += `</div>`;
+  });
+  
+  if (html === '') {
+      html = '<div style="padding: 20px; text-align: center; color: var(--color-text-secondary);">No endpoints matched your search.</div>';
+  }
+  
+  container.innerHTML = html;
+}
+
+render();
+</script>
+</body>
+</html>
